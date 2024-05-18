@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rock Paper Scissors</title>
+    <style>
+        body {
+            background-color: #1f1f1f;
+            color: #ffffff;
+            font-family: Arial, sans-serif;
+        }
+
+        #container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+        }
+
+        #game-container {
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            border-radius: 10px;
+            background-color: #333333;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        #webcam-container {
+            margin-bottom: 20px;
+        }
+
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            border: none;
+            border-radius: 5px;
+            background-color: #4CAF50;
+            color: white;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            margin-top: 10px;
+        }
+
+        button:hover {
+            background-color: #45a049;
+        }
+
+        .label {
+            margin-bottom: 10px;
+        }
+
+        #ai-choice {
+            display: inline-block;
+            width: 100px;
+            height: 100px;
+            font-size: 30px;
+            text-align: center;
+            line-height: 100px;
+            border-radius: 10px;
+            background-color: #555;
+            margin-left: 20px;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="container">
+        <div id="game-container">
+            <h2>Rock Paper Scissors</h2>
+            <div id="webcam-container"></div>
+            <div id="label-container"></div>
+            <button type="button" onclick="init()">Start</button>
+            <div id="ai-choice"></div>
+            <button type="button" onclick="startGame()">Start Game</button>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@latest/dist/teachablemachine-image.min.js"></script>
+    <script>
+        const URL = "https://teachablemachine.withgoogle.com/models/eeSjmLVv0/";
+        let model, webcam, labelContainer, maxPredictions;
+
+        async function init() {
+            const modelURL = URL + "model.json";
+            const metadataURL = URL + "metadata.json";
+
+            model = await tmImage.load(modelURL, metadataURL);
+            maxPredictions = model.getTotalClasses();
+
+            const flip = true;
+            webcam = new tmImage.Webcam(200, 200, flip);
+            await webcam.setup();
+            await webcam.play();
+            window.requestAnimationFrame(loop);
+
+            document.getElementById("webcam-container").appendChild(webcam.canvas);
+            labelContainer = document.getElementById("label-container");
+            for (let i = 0; i < maxPredictions; i++) {
+                const labelElement = document.createElement("div");
+                labelElement.classList.add("label");
+                labelContainer.appendChild(labelElement);
+            }
+        }
+
+        async function loop() {
+            webcam.update();
+            await predict();
+            window.requestAnimationFrame(loop);
+        }
+
+        async function predict() {
+            const prediction = await model.predict(webcam.canvas);
+            const emojis = ["✊", "✋", "✌️"]; // Rock, Paper, Scissors emojis
+            let userChoice = -1;
+            let highestProbability = 0;
+            for (let i = 0; i < maxPredictions; i++) {
+                const probabilityPercentage = Math.round(prediction[i].probability * 100);
+                const classPrediction = `${emojis[i]}: ${probabilityPercentage}%`;
+                labelContainer.childNodes[i].innerHTML = classPrediction;
+                if (probabilityPercentage > highestProbability) {
+                    highestProbability = probabilityPercentage;
+                    userChoice = i;
+                }
+            }
+            return userChoice;
+        }
+
+        function startGame() {
+            const aiChoice = Math.floor(Math.random() * maxPredictions);
+            const aiEmoji = ["✊", "✋", "✌️"][aiChoice];
+            document.getElementById("ai-choice").innerText = aiEmoji;
+            const userChoice = predict();
+            setTimeout(() => {
+                determineResult(userChoice, aiChoice);
+            }, 5000);
+        }
+
+        function determineResult(userChoice, aiChoice) {
+            const resultText = document.getElementById("ai-choice");
+            if (userChoice === aiChoice) {
+                resultText.innerText = `Tie`;
+            } else if (
+                (userChoice === 0 && aiChoice === 2) ||
+                (userChoice === 1 && aiChoice === 0) ||
+                (userChoice === 2 && aiChoice === 1)
+            ) {
+                resultText.innerText = `You Win!`;
+            } else {
+                resultText.innerText = `You Lose!`;
+            }
+        }
+    </script>
+</body>
+
+</html>
